@@ -7,6 +7,7 @@ app = Flask(__name__)
 
 CHANNEL_ACCESS_TOKEN = os.environ.get("CHANNEL_ACCESS_TOKEN", "")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxPR6WbI57uBD9NmgnDPXH8VHLn4jZgJjr3zKM-DcQZ8t9l4cO2P8-0ZiLRzkAf2IAD6g/exec"
 
 SYSTEM_PROMPT = """你是 NextFrame AI Studio 的客服助理，負責用繁體中文回答客戶的問題。請保持友善、專業，回覆簡潔有重點。
 
@@ -57,6 +58,29 @@ STELLAR5、YUII、YUII & LILI、Donnie Ai
 - 如客戶有具體需求，請引導他們提供影片用途、長度、數量，以便報價
 - 如需深入洽談，請引導客戶發 Email 至 ai@next-frame.ai 或加 LINE @910mvqdn
 """
+
+def get_user_profile(user_id):
+    """取得 LINE 用戶資料"""
+    try:
+        res = requests.get(
+            f"https://api.line.me/v2/bot/profile/{user_id}",
+            headers={"Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"}
+        )
+        return res.json()
+    except:
+        return {}
+
+def save_to_sheet(user_id, display_name, picture_url, action):
+    """記錄到 Google Sheets"""
+    try:
+        requests.post(GOOGLE_SHEET_URL, json={
+            "userId": user_id,
+            "displayName": display_name,
+            "pictureUrl": picture_url,
+            "action": action
+        }, timeout=10)
+    except Exception as e:
+        print(f"Sheet error: {e}")
 
 def ask_ai(user_message):
     """呼叫 OpenRouter AI API"""
@@ -114,11 +138,27 @@ def webhook():
             return "OK", 200
 
         for event in events:
-            if event.get("type") == "message" and event.get("message", {}).get("type") == "text":
+            event_type = event.get("type")
+            user_id = event.get("source", {}).get("userId", "")
+
+            # 有人加入官方帳號
+            if event_type == "follow":
+                profile = get_user_profile(user_id)
+                display_name = profile.get("displayName", "（未知）")
+                picture_url = profile.get("pictureUrl", "")
+                save_to_sheet(user_id, display_name, picture_url, "加入")
+                # 發送歡迎訊息
+                reply_token = event.get("replyToken")
+                send_reply(reply_token, f"您好 {display_name}！歡迎加入 NextFrame AI Studio 🎬\n\n我是 AI 客服助理，可以回答您關於 AI 影片製作、報價、作品集的問題。\n\n請問有什麼可以幫您的嗎？")
+
+            # 有人封鎖或退出
+            elif event_type == "unfollow":
+                save_to_sheet(user_id, "", "", "封鎖/退出")
+
+            # 一般訊息
+            elif event_type == "message" and event.get("message", {}).get("type") == "text":
                 reply_token = event.get("replyToken")
                 user_message = event.get("message", {}).get("text", "").strip()
-
-                # 呼叫 AI 生成回覆
                 reply_text = ask_ai(user_message)
                 send_reply(reply_token, reply_text)
 

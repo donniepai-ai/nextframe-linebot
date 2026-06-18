@@ -18,28 +18,176 @@ handler = WebhookHandler(CHANNEL_SECRET)
 
 # 關鍵字自動回覆
 KEYWORDS = {
-    "報價": "感謝您的詢問！NextFrame AI Studio 提供客製化 AI 影片製作服務，報價依專案需求而定。請提供您的需求細節，我們會盡快與您聯繫 🎬",
-    "價格": "感謝您的詢問！NextFrame AI Studio 提供客製化 AI 影片製作服務，報價依專案需求而定。請提供您的需求細節，我們會盡快與您聯繫 🎬",
-    "費用": "感謝您的詢問！NextFrame AI Studio 提供客製化 AI 影片製作服務，報價依專案需求而定。請提供您的需求細節，我們會盡快與您聯繫 🎬",
-    "合作": "感謝您對 NextFrame AI Studio 的興趣！歡迎告訴我們您的合作需求，我們會盡快安排時間詳談 😊",
-    "服務": "NextFrame AI Studio 提供以下服務：\n🎬 AI 影片製作\n📸 AI 形象照\n🎨 品牌視覺設計\n📱 社群內容製作\n\n詳情請參考：https://next-frame.ai",
-    "作品": "歡迎參考我們的作品集！\n🌐 https://next-frame.ai\n📸 IG: ig.ai-film.ai\n📘 FB: fb.ai-film.ai",
-    "聯絡": "您可以透過以下方式聯絡我們：\n📧 Email: ai@next-frame.ai\n💬 LINE: @910mvqdn\n🌐 https://next-frame.ai",
+    "報價": """感謝您的詢問！💰
+
+NextFrame AI Studio 提供兩種服務模式：
+
+🎬 **客製化影片製作**
+— 依專案內容、長度、複雜度報價
+— 完全 AI 生成，無需實拍現場
+
+🛠 **AI 工具導入服務**
+— 協助企業建立自己的 AI 影片生成流程
+— 依需求客製化方案
+
+費用依專案而定，歡迎告訴我們您的需求，我們會盡快提供報價！
+📧 ai@next-frame.ai
+🌐 https://next-frame.ai""",
+
+    "價格": """感謝您的詢問！💰
+
+NextFrame AI Studio 採客製化報價，費用依專案規模、影片長度與需求而定。
+
+歡迎提供以下資訊，我們會盡快給您報價：
+1. 影片用途（廣告、社群、產品展示等）
+2. 預計長度
+3. 預計數量
+4. 希望的交件時程
+
+📧 ai@next-frame.ai
+🌐 https://next-frame.ai""",
+
+    "費用": """感謝您的詢問！💰
+
+NextFrame AI Studio 採客製化報價，費用依專案規模、影片長度與需求而定。
+
+歡迎提供以下資訊，我們會盡快給您報價：
+1. 影片用途（廣告、社群、產品展示等）
+2. 預計長度
+3. 預計數量
+4. 希望的交件時程
+
+📧 ai@next-frame.ai
+🌐 https://next-frame.ai""",
+
+    "時間": """關於製作時程 ⏱
+
+NextFrame AI Studio 的製作時間依專案規模而定：
+• 小型專案（社群短影片）：約 3–5 個工作天
+• 中型專案（品牌廣告）：約 1–2 週
+• 大型專案（系列影片/工具導入）：依需求評估
+
+歡迎告訴我們您的需求與期望交件日，我們會盡力配合！
+📧 ai@next-frame.ai""",
+
+    "多久": """關於製作時程 ⏱
+
+製作時間依專案規模而定：
+• 小型專案（社群短影片）：約 3–5 個工作天
+• 中型專案（品牌廣告）：約 1–2 週
+• 大型專案（系列影片/工具導入）：依需求評估
+
+歡迎詳細告訴我們您的需求！
+📧 ai@next-frame.ai""",
+
+    "案例": """以下是 NextFrame AI Studio 的合作案例 🏆
+
+🖥 **XPG（威剛科技）**
+— AI 產品 ASMR 影片、品牌視覺內容
+
+🏛 **台南市政府**
+— 政府形象宣傳影片
+
+💻 **華碩 ASUS**
+— 品牌 AI 影片製作
+
+📱 **華為 Huawei**
+— 產品展示影片
+
+💎 **卡地亞 Cartier**
+— 精品品牌視覺影片
+
+更多作品請參考：
+🌐 https://next-frame.ai
+📸 IG: ig.ai-film.ai""",
+
+    "客戶": """以下是 NextFrame AI Studio 的合作品牌 🏆
+
+XPG（威剛科技）、台南市政府、華碩 ASUS、華為 Huawei、卡地亞 Cartier
+
+我們服務橫跨科技、政府、精品等多元產業，提供全 AI 影片製作解決方案。
+
+更多作品：🌐 https://next-frame.ai""",
+
+    "作品": """歡迎參考 NextFrame AI Studio 的作品集！🎬
+
+合作品牌包含：
+🏆 XPG、台南市政府、華碩、華為、卡地亞
+
+🌐 作品集：https://next-frame.ai
+📸 IG：ig.ai-film.ai
+📘 FB：fb.ai-film.ai""",
+
+    "服務": """NextFrame AI Studio 提供以下服務 🎬
+
+**🎥 客製化 AI 影片製作**
+• 產品展示影片
+• 品牌廣告影片
+• 社群短影片
+• AI ASMR 影片
+• 形象宣傳片
+
+**🛠 AI 工具導入服務**
+• 企業 AI 影片生成流程建置
+• 客製化 AI 工具開發
+
+所有影片皆為純 AI 生成，無需傳統實拍現場！
+
+📧 ai@next-frame.ai
+🌐 https://next-frame.ai""",
+
+    "合作": """感謝您對 NextFrame AI Studio 的興趣！😊
+
+我們已服務 XPG、台南市政府、華碩、華為、卡地亞等品牌，提供專業 AI 影片製作服務。
+
+歡迎告訴我們您的合作需求，我們會盡快安排時間詳談：
+📧 ai@next-frame.ai
+💬 LINE：@910mvqdn
+🌐 https://next-frame.ai""",
+
+    "實拍": """NextFrame AI Studio 專注於純 AI 影片製作 🤖
+
+我們的影片完全由 AI 生成，不需要傳統攝影棚或實拍現場，因此：
+✅ 製作成本更低
+✅ 製作速度更快
+✅ 可快速修改調整
+✅ 風格多元豐富
+
+有興趣了解更多？歡迎聯絡我們！
+📧 ai@next-frame.ai""",
+
+    "聯絡": """歡迎透過以下方式聯絡 NextFrame AI Studio 📬
+
+📧 Email：ai@next-frame.ai
+💬 LINE：@910mvqdn
+🌐 官網：https://next-frame.ai
+📸 IG：ig.ai-film.ai
+📘 FB：fb.ai-film.ai
+
+我們會盡快回覆您！""",
+
     "謝謝": "不客氣！有任何問題歡迎隨時詢問 😊",
+    "謝": "不客氣！有任何問題歡迎隨時詢問 😊",
     "hello": "Hello! 歡迎聯絡 NextFrame AI Studio 🎬 請問有什麼可以幫您的嗎？",
     "hi": "Hi！歡迎聯絡 NextFrame AI Studio 🎬 請問有什麼可以幫您的嗎？",
+    "你好": "您好！歡迎聯絡 NextFrame AI Studio 🎬 請問有什麼可以幫您的嗎？",
+    "哈囉": "哈囉！歡迎聯絡 NextFrame AI Studio 🎬 請問有什麼可以幫您的嗎？",
 }
 
 DEFAULT_REPLY = """您好！感謝您聯絡 NextFrame AI Studio 🎬
 
-我們是專業的 AI 影片製作團隊，提供：
-• AI 影片製作
-• AI 形象照
-• 品牌視覺設計
+我們是專業的 AI 影片製作團隊，合作品牌包含：
+XPG、台南市政府、華碩、華為、卡地亞
+
+服務項目：
+🎬 客製化 AI 影片製作
+🛠 企業 AI 工具導入
 
 我們已收到您的訊息，將盡快與您聯繫！
 
-歡迎瀏覽我們的作品：
+您也可以輸入以下關鍵字快速查詢：
+「服務」「報價」「案例」「時間」「聯絡」
+
 🌐 https://next-frame.ai"""
 
 

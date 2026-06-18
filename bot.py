@@ -70,7 +70,7 @@ def ask_ai(user_message):
                 "X-Title": "NextFrame LINE Bot"
             },
             json={
-                "model": "anthropic/claude-haiku-4",
+                "model": "anthropic/claude-haiku-4-5",
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_message}

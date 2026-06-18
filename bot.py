@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 CHANNEL_ACCESS_TOKEN = os.environ.get("CHANNEL_ACCESS_TOKEN", "")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxPR6WbI57uBD9NmgnDPXH8VHLn4jZgJjr3zKM-DcQZ8t9l4cO2P8-0ZiLRzkAf2IAD6g/exec"
+GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw8Kof2QkQ2urbhIzqtYjpd-knEQ5X7qeeJFMxczudKM2WA-DHarbionFDC-ld9ph6e/exec"
 
 SYSTEM_PROMPT = """你是 NextFrame AI Studio 的客服助理，負責用繁體中文回答客戶的問題。請保持友善、專業，回覆簡潔有重點。
 

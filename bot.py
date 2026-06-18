@@ -47,6 +47,11 @@ DEFAULT_REPLY = """您好！感謝您聯絡 NextFrame AI Studio 🎬
 def webhook():
     signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
+
+    # LINE Verify 會發空白 body，直接回 200
+    if not body:
+        return "OK", 200
+
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:

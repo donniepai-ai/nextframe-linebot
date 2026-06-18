@@ -48,9 +48,18 @@ def webhook():
     signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
 
-    # 空 body 或 Verify 測試直接回 200
-    if not body or body.strip() in ("", "{}"):
+    # 空 body 直接回 200
+    if not body or not body.strip():
         return "OK", 200
+
+    # events 為空（LINE Verify 測試）直接回 200
+    try:
+        import json
+        data = json.loads(body)
+        if not data.get("events"):
+            return "OK", 200
+    except Exception:
+        pass
 
     try:
         handler.handle(body, signature)

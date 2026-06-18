@@ -48,15 +48,17 @@ def webhook():
     signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
 
-    # LINE Verify 會發空白 body，直接回 200
-    if not body:
+    # 空 body 或 Verify 測試直接回 200
+    if not body or body.strip() in ("", "{}"):
         return "OK", 200
 
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
-        abort(400)
-    return "OK"
+        return "Bad signature", 400
+    except Exception:
+        pass
+    return "OK", 200
 
 
 @handler.add(MessageEvent, message=TextMessageContent)

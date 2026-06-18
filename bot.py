@@ -45,28 +45,50 @@ DEFAULT_REPLY = """您好！感謝您聯絡 NextFrame AI Studio 🎬
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    signature = request.headers.get("X-Line-Signature", "")
     body = request.get_data(as_text=True)
 
-    # 空 body 直接回 200
     if not body or not body.strip():
         return "OK", 200
 
-    # events 為空（LINE Verify 測試）直接回 200
     try:
         import json
         data = json.loads(body)
-        if not data.get("events"):
-            return "OK", 200
-    except Exception:
-        pass
+        events = data.get("events", [])
 
-    try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        return "Bad signature", 400
-    except Exception:
-        pass
+        # Verify 測試（空 events）直接回 200
+        if not events:
+            return "OK", 200
+
+        # 處理每個事件
+        for event in events:
+            if event.get("type") == "message" and event.get("message", {}).get("type") == "text":
+                reply_token = event.get("replyToken")
+                user_message = event.get("message", {}).get("text", "").strip()
+
+                reply_text = None
+                for keyword, response in KEYWORDS.items():
+                    if keyword.lower() in user_message.lower():
+                        reply_text = response
+                        break
+                if not reply_text:
+                    reply_text = DEFAULT_REPLY
+
+                # 發送回覆
+                import requests as req
+                req.post(
+                    "https://api.line.me/v2/bot/message/reply",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
+                    },
+                    json={
+                        "replyToken": reply_token,
+                        "messages": [{"type": "text", "text": reply_text}]
+                    }
+                )
+    except Exception as e:
+        print(f"Error: {e}")
+
     return "OK", 200
 
 

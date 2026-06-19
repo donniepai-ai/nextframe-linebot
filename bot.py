@@ -379,6 +379,46 @@ AI MV 製作"""
 
     return "OK", 200
 
+@app.route("/webhook/cal", methods=["POST"])
+def webhook_cal():
+    """接收 Cal.com webhook 預約"""
+    try:
+        data = request.get_json()
+        
+        # Cal.com webhook 事件類型
+        event_type = data.get("triggerEvent", "")
+        if event_type != "BOOKING_CREATED":
+            return "OK", 200
+        
+        # 提取預約資訊
+        booking_data = data.get("booking", {})
+        event_data = data.get("eventData", {})
+        
+        # 組合預約資訊
+        booking_info = {
+            'name': booking_data.get("attendees", [{}])[0].get("name", "N/A"),
+            'phone': booking_data.get("attendees", [{}])[0].get("phoneNumber", "N/A"),
+            'date': booking_data.get("startTime", "")[:10],  # 取日期部分 YYYY-MM-DD
+            'time': booking_data.get("startTime", "")[11:16],  # 取時間部分 HH:MM
+            'service': event_data.get("title", "Calendar Event")
+        }
+        
+        # 存到 Google Sheets
+        save_booking_to_sheet("cal.com", "Cal.com 預約", booking_info)
+        
+        # 建立 Google Calendar 事件（如果還沒有的話）
+        create_google_calendar_event(booking_info)
+        
+        # 通知白導
+        notify_telegram(booking_info, "cal.com", "Cal.com 預約")
+        
+        print(f"✅ Cal.com 預約已同步")
+        return "OK", 200
+        
+    except Exception as e:
+        print(f"Cal.com webhook error: {e}")
+        return "OK", 200
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port, debug=False)

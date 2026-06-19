@@ -8,6 +8,9 @@ app = Flask(__name__)
 CHANNEL_ACCESS_TOKEN = os.environ.get("CHANNEL_ACCESS_TOKEN", "")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw8Kof2QkQ2urbhIzqtYjpd-knEQ5X7qeeJFMxczudKM2WA-DHarbionFDC-ld9ph6e/exec"
+BOOKING_SHEET_ID = "1dJtLo7h-J_JtTc_PMzojTu2Me_QETpBcbb9JNxcJ27Y"
+TELEGRAM_USER_ID = os.environ.get("TELEGRAM_USER_ID", "862846115")  # 白導的 Telegram ID
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 SYSTEM_PROMPT = """你是 NextFrame AI Studio 的客服助理，負責用繁體中文回答客戶的問題。請保持友善、專業，回覆簡潔有重點。
 
@@ -109,6 +112,82 @@ def ask_ai(user_message):
         print(f"AI error: {e}")
         return "您好！感謝聯絡 NextFrame AI Studio 🎬\n\n目前系統稍忙，請稍後再試，或直接聯絡我們：\n📧 ai@next-frame.ai\n💬 LINE：@910mvqdn"
 
+def is_booking_request(text):
+    """檢查是否是預約請求"""
+    booking_keywords = ["預約", "訂位", "預訂", "booking", "schedule", "時間", "檔期"]
+    text_lower = text.lower()
+    return any(keyword in text_lower for keyword in booking_keywords)
+
+def parse_booking_info(text):
+    """解析預約資訊"""
+    # 簡單的解析 - 客戶應該提供：名字、電話、日期、時間、服務項目
+    # 格式：名字 | 電話 | 日期 | 時間 | 服務項目
+    lines = text.strip().split("\n")
+    info = {}
+    
+    if len(lines) >= 1:
+        info['name'] = lines[0].split("名字：")[-1].split("｜")[0].strip() if "名字" in lines[0] or "｜" in lines[0] else lines[0].split("｜")[0].strip()
+    if len(lines) >= 2:
+        info['phone'] = lines[1].split("電話：")[-1].split("｜")[0].strip() if "電話" in lines[1] or "｜" in lines[1] else lines[1].split("｜")[0].strip()
+    if len(lines) >= 3:
+        info['date'] = lines[2].split("日期：")[-1].split("｜")[0].strip() if "日期" in lines[2] or "｜" in lines[2] else lines[2].split("｜")[0].strip()
+    if len(lines) >= 4:
+        info['time'] = lines[3].split("時間：")[-1].split("｜")[0].strip() if "時間" in lines[3] or "｜" in lines[3] else lines[3].split("｜")[0].strip()
+    if len(lines) >= 5:
+        info['service'] = lines[4].split("服務：")[-1].strip() if "服務" in lines[4] else lines[4].strip()
+    else:
+        info['service'] = "待詢問"
+    
+    return info if all(k in info for k in ['name', 'phone', 'date', 'time']) else None
+
+def save_booking_to_sheet(user_id, display_name, booking_info):
+    """將預約資訊存到 Google Sheets"""
+    try:
+        from datetime import datetime
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 透過 Google Apps Script 存資料
+        requests.post(GOOGLE_SHEET_URL, json={
+            "action": "booking",
+            "userId": user_id,
+            "displayName": display_name,
+            "bookingTime": now,
+            "name": booking_info.get('name', ''),
+            "phone": booking_info.get('phone', ''),
+            "date": booking_info.get('date', ''),
+            "time": booking_info.get('time', ''),
+            "service": booking_info.get('service', '')
+        }, timeout=10)
+    except Exception as e:
+        print(f"Booking sheet error: {e}")
+
+def notify_telegram(booking_info, user_id, display_name):
+    """通知白導有新預約"""
+    try:
+        message = f"""
+🎉 **新預約通知**
+
+客戶名稱: {booking_info.get('name', 'N/A')}
+電話: {booking_info.get('phone', 'N/A')}
+預約日期: {booking_info.get('date', 'N/A')}
+預約時間: {booking_info.get('time', 'N/A')}
+服務項目: {booking_info.get('service', 'N/A')}
+LINE 客戶名: {display_name}
+LINE ID: {user_id}
+"""
+        if TELEGRAM_BOT_TOKEN:
+            requests.post(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                json={
+                    "chat_id": TELEGRAM_USER_ID,
+                    "text": message,
+                    "parse_mode": "Markdown"
+                },
+                timeout=10
+            )
+    except Exception as e:
+        print(f"Telegram notification error: {e}")
+
 def send_reply(reply_token, text):
     """發送 LINE 回覆"""
     requests.post(
@@ -149,7 +228,36 @@ def webhook():
                 save_to_sheet(user_id, display_name, picture_url, "加入")
                 # 發送歡迎訊息
                 reply_token = event.get("replyToken")
-                send_reply(reply_token, f"您好 {display_name}！歡迎加入 NextFrame AI Studio 🎬\n\n我是 AI 客服助理，可以回答您關於 AI 影片製作、報價、作品集的問題。\n\n請問有什麼可以幫您的嗎？")
+                welcome_message = f"""您好 {display_name}！歡迎加入 NextFrame AI Studio 🎬
+
+我是 AI 客服助理，可以幫您：
+
+✨ **功能 1：諮詢服務**
+詢問關於 AI 影片製作、報價、作品集等問題。例如：
+• 「AI MV 製作要多久？」
+• 「你們有做過什麼案例？」
+• 「怎麼聯絡你們？」
+
+📅 **功能 2：線上預約**
+需要預約時，按照下面格式傳訊息：
+
+你的名字
+你的電話
+預約日期（例如：2026-06-28）
+預約時間（例如：14:00）
+服務項目（例如：AI MV 製作）
+
+例如：
+小王
+0912345678
+2026-06-28
+14:00
+AI MV 製作
+
+---
+
+請問有什麼可以幫您的嗎？"""
+                send_reply(reply_token, welcome_message)
 
             # 有人封鎖或退出
             elif event_type == "unfollow":
@@ -159,7 +267,52 @@ def webhook():
             elif event_type == "message" and event.get("message", {}).get("type") == "text":
                 reply_token = event.get("replyToken")
                 user_message = event.get("message", {}).get("text", "").strip()
-                reply_text = ask_ai(user_message)
+                profile = get_user_profile(user_id)
+                display_name = profile.get("displayName", "客戶")
+                
+                # 檢查是否是預約請求
+                if is_booking_request(user_message):
+                    booking_info = parse_booking_info(user_message)
+                    if booking_info:
+                        # 成功解析預約資訊
+                        save_to_sheet(user_id, display_name, "預約")
+                        save_booking_to_sheet(user_id, display_name, booking_info)
+                        notify_telegram(booking_info, user_id, display_name)
+                        reply_text = f"""✅ 預約成功！
+
+感謝 {booking_info.get('name')} 的預約！
+
+📋 預約詳情：
+• 日期：{booking_info.get('date')}
+• 時間：{booking_info.get('time')}
+• 服務：{booking_info.get('service')}
+• 電話：{booking_info.get('phone')}
+
+我們會盡快與您聯繫確認詳細事項。
+如有任何問題，請聯絡：
+📧 ai@next-frame.ai
+💬 LINE：@910mvqdn"""
+                    else:
+                        # 預約資訊不完整
+                        reply_text = """📝 請提供完整的預約資訊，格式如下：
+
+第一行：你的名字
+第二行：你的電話號碼
+第三行：想預約的日期（例如：2026-06-22）
+第四行：想預約的時間（例如：14:00）
+第五行：服務項目（例如：AI MV 製作）
+
+例子：
+小王
+0912345678
+2026-06-22
+14:00
+AI MV 製作"""
+                else:
+                    # 一般謙詢
+                    reply_text = ask_ai(user_message)
+                    save_to_sheet(user_id, display_name, f"詢問：{user_message[:50]}")
+                
                 send_reply(reply_token, reply_text)
 
     except Exception as e:

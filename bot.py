@@ -192,35 +192,34 @@ LINE ID: {user_id}
         print(f"Telegram notification error: {e}")
 
 def create_google_calendar_event(booking_info):
-    """建立 Google Calendar 事件"""
+    """建立 Google Calendar 事件（背景執行，不阻擋回覆）"""
     try:
-        # 解析日期和時間
+        # 簡單的日期時間處理
         date_str = booking_info.get('date', '')
         time_str = booking_info.get('time', '14:00')
         
-        # 組合成 ISO 8601 格式時間 (台灣時區 UTC+8)
-        try:
-            # 嘗試解析日期格式 YYYY-MM-DD
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-            time_obj = datetime.strptime(time_str, "%H:%M")
-            
-            # 組合日期和時間
-            start_datetime = datetime.combine(date_obj.date(), time_obj.time())
-            # 轉換為 ISO 8601 格式（含台灣時區）
-            start_iso = start_datetime.strftime("%Y-%m-%dT%H:%M:%S+08:00")
-            
-            # 假設預約時長為 1 小時
-            end_time_obj = datetime.strptime(f"{time_str[0:2]}:{int(time_str[3:5])+60}", "%H:%M") if int(time_str[3:5])+60 < 60 else datetime.strptime(f"{int(time_str[0:2])+1}:{int(time_str[3:5])+60-60}", "%H:%M")
-            end_datetime = datetime.combine(date_obj.date(), end_time_obj.time())
-            end_iso = end_datetime.strftime("%Y-%m-%dT%H:%M:%S+08:00")
-        except:
-            print("Date/time parsing error, using defaults")
-            return None
+        if not date_str:
+            return False
         
-        # 使用 gws CLI（Google Workspace CLI）建立事件
+        # 組合成 ISO 8601 格式 (台灣時區 UTC+8)
+        start_iso = f"{date_str}T{time_str}:00+08:00"
+        
+        # 預約時長 1 小時
+        time_parts = time_str.split(':')
+        end_hour = int(time_parts[0]) + 1
+        end_minute = time_parts[1] if len(time_parts) > 1 else '00'
+        end_iso = f"{date_str}T{end_hour:02d}:{end_minute}:00+08:00"
+        
+        # 使用 Google Workspace API 建立事件
+        gapi_script = f"{HERMES_HOME}/skills/productivity/google-workspace/scripts/google_api.py"
+        
+        if not os.path.exists(gapi_script):
+            print(f"❌ Google API script not found at {gapi_script}")
+            return False
+        
         cmd = [
-            "python", 
-            f"{HERMES_HOME}/skills/productivity/google-workspace/scripts/google_api.py",
+            "python3", 
+            gapi_script,
             "calendar", "create",
             "--summary", f"📅 {booking_info.get('service', 'AI 製作')} - {booking_info.get('name', 'N/A')}",
             "--start", start_iso,
@@ -228,7 +227,7 @@ def create_google_calendar_event(booking_info):
             "--description", f"客戶電話：{booking_info.get('phone', 'N/A')}\n預約來源：LINE Bot"
         ]
         
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         
         if result.returncode == 0:
             print(f"✅ Google Calendar 事件建立成功")

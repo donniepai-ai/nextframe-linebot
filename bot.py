@@ -67,6 +67,7 @@ STELLAR5、YUII、YUII & LILI、Donnie Ai
 📧 Email：ai@next-frame.ai
 💬 LINE：@910mvqdn
 🌐 官網：https://next-frame.ai
+📅 線上預約：https://cal.com/next-frame-ai
 
 💡 回答時的原則：
 - 客戶問什麼，就簡短清楚地回答
@@ -258,7 +259,91 @@ def webhook():
 
 @app.route("/webhook/cal", methods=["POST"])
 def webhook_cal():
-    return "OK", 200
+    """接收 Cal.com webhook 預約"""
+    try:
+        data = request.get_json()
+        print(f"Cal.com webhook received: {data}")
+        
+        # Cal.com webhook 事件類型
+        event_type = data.get("triggerEvent", "")
+        if event_type != "BOOKING_CREATED":
+            print(f"Ignoring event type: {event_type}")
+            return "OK", 200
+        
+        # 提取預約資訊
+        booking_data = data.get("booking", {})
+        event_data = data.get("eventData", {})
+        
+        # 安全地提取客戶信息
+        attendees = booking_data.get("attendees", [])
+        customer_name = "N/A"
+        customer_phone = "N/A"
+        customer_email = "N/A"
+        
+        if attendees and len(attendees) > 0:
+            customer_name = attendees[0].get("name", "N/A")
+            customer_phone = attendees[0].get("phoneNumber", "N/A")
+            customer_email = attendees[0].get("email", "N/A")
+        
+        # 提取日期時間
+        start_time = booking_data.get("startTime", "")
+        booking_date = start_time[:10] if start_time else "N/A"
+        booking_time = start_time[11:16] if len(start_time) > 11 else "N/A"
+        
+        # 組合預約資訊
+        booking_info = {
+            'name': customer_name,
+            'phone': customer_phone,
+            'email': customer_email,
+            'date': booking_date,
+            'time': booking_time,
+            'service': event_data.get("title", "Calendar Event")
+        }
+        
+        print(f"Booking info: {booking_info}")
+        
+        # 存到 Google Sheets
+        save_booking_to_sheet("cal.com", booking_info)
+        
+        # 通知白導
+        notify_telegram_cal(booking_info)
+        
+        print(f"✅ Cal.com 預約已同步")
+        return "OK", 200
+        
+    except Exception as e:
+        print(f"❌ Cal.com webhook error: {e}")
+        return "OK", 200
+
+def notify_telegram_cal(booking_info):
+    """通知 Telegram Cal.com 預約"""
+    try:
+        if not TELEGRAM_BOT_TOKEN:
+            print("No Telegram token configured")
+            return
+        
+        message = f"""🎉 網站上有新預約！
+
+客戶名稱: {booking_info.get('name', 'N/A')}
+電話: {booking_info.get('phone', 'N/A')}
+Email: {booking_info.get('email', 'N/A')}
+預約日期: {booking_info.get('date', 'N/A')}
+預約時間: {booking_info.get('time', 'N/A')}
+服務項目: {booking_info.get('service', 'N/A')}
+
+來源: next-frame.ai 的 Cal.com 預約"""
+        
+        requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+            json={
+                "chat_id": TELEGRAM_USER_ID,
+                "text": message
+            },
+            timeout=5
+        )
+        print("✅ Telegram notified")
+    except Exception as e:
+        print(f"❌ Telegram error: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))

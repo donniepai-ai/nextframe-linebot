@@ -2,6 +2,8 @@ import os
 import json
 import requests
 from flask import Flask, request, abort
+from datetime import datetime
+import subprocess
 
 app = Flask(__name__)
 
@@ -11,6 +13,7 @@ GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw8Kof2QkQ2urbhIzqtY
 BOOKING_SHEET_ID = "1dJtLo7h-J_JtTc_PMzojTu2Me_QETpBcbb9JNxcJ27Y"
 TELEGRAM_USER_ID = os.environ.get("TELEGRAM_USER_ID", "862846115")  # 白導的 Telegram ID
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+HERMES_HOME = os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes"))
 
 SYSTEM_PROMPT = """你是 NextFrame AI Studio 的客服助理，負責用繁體中文回答客戶的問題。請保持友善、專業，回覆簡潔有重點。
 
@@ -188,6 +191,56 @@ LINE ID: {user_id}
     except Exception as e:
         print(f"Telegram notification error: {e}")
 
+def create_google_calendar_event(booking_info):
+    """建立 Google Calendar 事件"""
+    try:
+        # 解析日期和時間
+        date_str = booking_info.get('date', '')
+        time_str = booking_info.get('time', '14:00')
+        
+        # 組合成 ISO 8601 格式時間 (台灣時區 UTC+8)
+        try:
+            # 嘗試解析日期格式 YYYY-MM-DD
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            time_obj = datetime.strptime(time_str, "%H:%M")
+            
+            # 組合日期和時間
+            start_datetime = datetime.combine(date_obj.date(), time_obj.time())
+            # 轉換為 ISO 8601 格式（含台灣時區）
+            start_iso = start_datetime.strftime("%Y-%m-%dT%H:%M:%S+08:00")
+            
+            # 假設預約時長為 1 小時
+            end_time_obj = datetime.strptime(f"{time_str[0:2]}:{int(time_str[3:5])+60}", "%H:%M") if int(time_str[3:5])+60 < 60 else datetime.strptime(f"{int(time_str[0:2])+1}:{int(time_str[3:5])+60-60}", "%H:%M")
+            end_datetime = datetime.combine(date_obj.date(), end_time_obj.time())
+            end_iso = end_datetime.strftime("%Y-%m-%dT%H:%M:%S+08:00")
+        except:
+            print("Date/time parsing error, using defaults")
+            return None
+        
+        # 使用 gws CLI（Google Workspace CLI）建立事件
+        cmd = [
+            "python", 
+            f"{HERMES_HOME}/skills/productivity/google-workspace/scripts/google_api.py",
+            "calendar", "create",
+            "--summary", f"📅 {booking_info.get('service', 'AI 製作')} - {booking_info.get('name', 'N/A')}",
+            "--start", start_iso,
+            "--end", end_iso,
+            "--description", f"客戶電話：{booking_info.get('phone', 'N/A')}\n預約來源：LINE Bot"
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        
+        if result.returncode == 0:
+            print(f"✅ Google Calendar 事件建立成功")
+            return True
+        else:
+            print(f"❌ Google Calendar 建立失敗：{result.stderr}")
+            return False
+            
+    except Exception as e:
+        print(f"Google Calendar error: {e}")
+        return False
+
 def send_reply(reply_token, text):
     """發送 LINE 回覆"""
     requests.post(
@@ -277,7 +330,13 @@ AI MV 製作
                         # 成功解析預約資訊
                         save_to_sheet(user_id, display_name, "預約")
                         save_booking_to_sheet(user_id, display_name, booking_info)
+                        
+                        # 建立 Google Calendar 事件
+                        create_google_calendar_event(booking_info)
+                        
+                        # 通知白導
                         notify_telegram(booking_info, user_id, display_name)
+                        
                         reply_text = f"""✅ 預約成功！
 
 感謝 {booking_info.get('name')} 的預約！
@@ -288,7 +347,7 @@ AI MV 製作
 • 服務：{booking_info.get('service')}
 • 電話：{booking_info.get('phone')}
 
-我們會盡快與您聯繫確認詳細事項。
+你的預約已自動新增到行程表，我們會盡快與您聯繫確認詳細事項。
 如有任何問題，請聯絡：
 📧 ai@next-frame.ai
 💬 LINE：@910mvqdn"""

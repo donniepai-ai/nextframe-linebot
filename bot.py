@@ -123,25 +123,39 @@ def is_booking_request(text):
 
 def parse_booking_info(text):
     """解析預約資訊"""
-    # 簡單的解析 - 客戶應該提供：名字、電話、日期、時間、服務項目
-    # 格式：名字 | 電話 | 日期 | 時間 | 服務項目
-    lines = text.strip().split("\n")
-    info = {}
+    # 客戶應該提供 5 行：名字、電話、日期、時間、服務項目
+    lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
     
-    if len(lines) >= 1:
-        info['name'] = lines[0].split("名字：")[-1].split("｜")[0].strip() if "名字" in lines[0] or "｜" in lines[0] else lines[0].split("｜")[0].strip()
-    if len(lines) >= 2:
-        info['phone'] = lines[1].split("電話：")[-1].split("｜")[0].strip() if "電話" in lines[1] or "｜" in lines[1] else lines[1].split("｜")[0].strip()
-    if len(lines) >= 3:
-        info['date'] = lines[2].split("日期：")[-1].split("｜")[0].strip() if "日期" in lines[2] or "｜" in lines[2] else lines[2].split("｜")[0].strip()
-    if len(lines) >= 4:
-        info['time'] = lines[3].split("時間：")[-1].split("｜")[0].strip() if "時間" in lines[3] or "｜" in lines[3] else lines[3].split("｜")[0].strip()
-    if len(lines) >= 5:
-        info['service'] = lines[4].split("服務：")[-1].strip() if "服務" in lines[4] else lines[4].strip()
-    else:
-        info['service'] = "待詢問"
+    # 需要至少 5 行資訊
+    if len(lines) < 5:
+        return None
     
-    return info if all(k in info for k in ['name', 'phone', 'date', 'time']) else None
+    # 簡單的驗證 - 確保有日期格式 (YYYY-MM-DD) 和時間格式 (HH:MM)
+    name = lines[0]
+    phone = lines[1]
+    date_str = lines[2]
+    time_str = lines[3]
+    service = lines[4]
+    
+    # 驗證日期格式 (YYYY-MM-DD)
+    if not date_str or len(date_str) != 10 or date_str[4] != '-' or date_str[7] != '-':
+        return None
+    
+    # 驗證時間格式 (HH:MM)
+    if not time_str or ':' not in time_str or len(time_str) != 5:
+        return None
+    
+    # 驗證電話不為空
+    if not phone or len(phone) < 9:
+        return None
+    
+    return {
+        'name': name,
+        'phone': phone,
+        'date': date_str,
+        'time': time_str,
+        'service': service
+    }
 
 def save_booking_to_sheet(user_id, display_name, booking_info):
     """將預約資訊存到 Google Sheets"""

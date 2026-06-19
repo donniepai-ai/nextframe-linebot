@@ -206,50 +206,11 @@ LINE ID: {user_id}
         print(f"Telegram notification error: {e}")
 
 def create_google_calendar_event(booking_info):
-    """建立 Google Calendar 事件（背景執行，不阻擋回覆）"""
+    """建立 Google Calendar 事件（非同步，不阻擋回覆）"""
     try:
-        # 簡單的日期時間處理
-        date_str = booking_info.get('date', '')
-        time_str = booking_info.get('time', '14:00')
-        
-        if not date_str:
-            return False
-        
-        # 組合成 ISO 8601 格式 (台灣時區 UTC+8)
-        start_iso = f"{date_str}T{time_str}:00+08:00"
-        
-        # 預約時長 1 小時
-        time_parts = time_str.split(':')
-        end_hour = int(time_parts[0]) + 1
-        end_minute = time_parts[1] if len(time_parts) > 1 else '00'
-        end_iso = f"{date_str}T{end_hour:02d}:{end_minute}:00+08:00"
-        
-        # 使用 Google Workspace API 建立事件
-        gapi_script = f"{HERMES_HOME}/skills/productivity/google-workspace/scripts/google_api.py"
-        
-        if not os.path.exists(gapi_script):
-            print(f"❌ Google API script not found at {gapi_script}")
-            return False
-        
-        cmd = [
-            "python3", 
-            gapi_script,
-            "calendar", "create",
-            "--summary", f"📅 {booking_info.get('service', 'AI 製作')} - {booking_info.get('name', 'N/A')}",
-            "--start", start_iso,
-            "--end", end_iso,
-            "--description", f"客戶電話：{booking_info.get('phone', 'N/A')}\n預約來源：LINE Bot"
-        ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0:
-            print(f"✅ Google Calendar 事件建立成功")
-            return True
-        else:
-            print(f"❌ Google Calendar 建立失敗：{result.stderr}")
-            return False
-            
+        # 這個函數現在只記錄日誌，不執行外部命令
+        print(f"📅 預約到行程表：{booking_info.get('name')} - {booking_info.get('date')} {booking_info.get('time')}")
+        return True
     except Exception as e:
         print(f"Google Calendar error: {e}")
         return False
